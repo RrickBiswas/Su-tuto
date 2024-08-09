@@ -1,0 +1,71 @@
+---
+- name: Setup environment and generate proof
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install Git
+      apt:
+        name: git-all
+        state: present
+
+    - name: Install curl
+      apt:
+        name: curl
+        state: present
+
+    - name: Install Rust
+      shell: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        . "$HOME/.cargo/env"
+      args:
+        executable: /bin/bash
+
+    - name: Ensure Rust environment is reloaded
+      shell: |
+        echo 'source $HOME/.cargo/env' >> ~/.bashrc
+        . ~/.bashrc
+      args:
+        executable: /bin/bash
+
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_version
+
+    - name: Print Docker version
+      debug:
+        msg: "{{ docker_version.stdout }}"
+
+    - name: Install Toolchain
+      shell: |
+        curl -L https://sp1.succinct.xyz | bash
+        source /root/.bashrc
+        sp1up
+      args:
+        executable: /bin/bash
+
+    - name: Create and run Rust project
+      shell: |
+        cargo prove new fibonacci
+        cd fibonacci
+        cd script
+        RUST_LOG=info cargo run --release -- --execute
+      args:
+        executable: /bin/bash
+
+    - name: Generate proof
+      shell: |
+        cd fibonacci
+        cd script
+        RUST_LOG=info cargo run --release -- --prove
+      args:
+        executable: /bin/bash
+
